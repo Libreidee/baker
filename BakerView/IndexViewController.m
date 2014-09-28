@@ -96,11 +96,11 @@
     CGRect screenBounds = [[UIScreen mainScreen] bounds];
 
     if (orientation == UIInterfaceOrientationLandscapeLeft || orientation == UIInterfaceOrientationLandscapeRight) {
-        pageWidth = screenBounds.size.height;
-        pageHeight = screenBounds.size.width;
+        pageWidth = MAX(screenBounds.size.height, screenBounds.size.width);
+        pageHeight = MIN(screenBounds.size.height, screenBounds.size.width);
     } else {
-        pageWidth = screenBounds.size.width;
-        pageHeight = screenBounds.size.height;
+        pageWidth = MIN(screenBounds.size.height, screenBounds.size.width);
+        pageHeight = MAX(screenBounds.size.height, screenBounds.size.width);
     }
 
     NSLog(@"[IndexView] Set IndexView size to %dx%d", pageWidth, pageHeight);

@@ -59,7 +59,7 @@
 - (id)init {
     self = [super init];
     if (self) {
-        #ifdef BAKER_NEWSSTAND
+#ifdef BAKER_NEWSSTAND
         purchasesManager = [PurchasesManager sharedInstance];
         [self addPurchaseObserver:@selector(handleProductsRetrieved:)
                              name:@"notification_products_retrieved"];
@@ -77,27 +77,27 @@
                              name:@"notification_multiple_restores"];
         [self addPurchaseObserver:@selector(handleRestoredIssueNotRecognised:)
                              name:@"notification_restored_issue_not_recognised"];
-
+        
         [[NSNotificationCenter defaultCenter] addObserver:self
                                                  selector:@selector(receiveBookProtocolNotification:)
                                                      name:@"notification_book_protocol"
                                                    object:nil];
-
+        
         [[SKPaymentQueue defaultQueue] addTransactionObserver:purchasesManager];
-        #endif
-
+#endif
+        
         api = [BakerAPI sharedInstance];
         issuesManager = [[IssuesManager sharedInstance] retain];
         notRecognisedTransactions = [[NSMutableArray alloc] init];
-
+        
         self.shelfStatus = [[[ShelfStatus alloc] init] autorelease];
         self.issueViewControllers = [[[NSMutableArray alloc] init] autorelease];
         self.supportedOrientation = [[NSBundle mainBundle] objectForInfoDictionaryKey:@"UISupportedInterfaceOrientations"];
         self.bookToBeProcessed = nil;
-
-        #ifdef BAKER_NEWSSTAND
+        
+#ifdef BAKER_NEWSSTAND
         [self handleRefresh:nil];
-        #endif
+#endif
     }
     return self;
 }
@@ -107,7 +107,7 @@
     self = [self init];
     if (self) {
         self.issues = currentBooks;
-
+        
         NSMutableArray *controllers = [NSMutableArray array];
         for (BakerIssue *issue in self.issues) {
             IssueViewController *controller = [self createIssueViewControllerWithIssue:issue];
@@ -134,11 +134,11 @@
     [issuesManager release];
     [notRecognisedTransactions release];
     [bookToBeProcessed release];
-
-    #ifdef BAKER_NEWSSTAND
+    
+#ifdef BAKER_NEWSSTAND
     [purchasesManager release];
-    #endif
-
+#endif
+    
     [super dealloc];
 }
 
@@ -147,37 +147,37 @@
 - (void)viewDidLoad
 {
     [super viewDidLoad];
-
+    
     self.navigationItem.title = NSLocalizedString(@"SHELF_NAVIGATION_TITLE", nil);
-
+    
     self.background = [[[UIImageView alloc] init] autorelease];
-
+    
     self.gridView = [[UICollectionView alloc] initWithFrame:CGRectZero collectionViewLayout:[[[UICollectionViewFlowLayout alloc] init] autorelease]];
     self.gridView.dataSource = self;
     self.gridView.delegate = self;
     self.gridView.backgroundColor = [UIColor clearColor];
     [self.gridView registerClass:[UICollectionViewCell class] forCellWithReuseIdentifier:@"cellIdentifier"];
-
+    
     [self.view addSubview:self.background];
     [self.view addSubview:self.gridView];
-
+    
     [self willRotateToInterfaceOrientation:self.interfaceOrientation duration:0];
     [self.gridView reloadData];
-
-    #ifdef BAKER_NEWSSTAND
+    
+#ifdef BAKER_NEWSSTAND
     self.refreshButton = [[[UIBarButtonItem alloc]
-                                       initWithBarButtonSystemItem:UIBarButtonSystemItemRefresh
-                                       target:self
-                                       action:@selector(handleRefresh:)]
-                                      autorelease];
-
+                           initWithBarButtonSystemItem:UIBarButtonSystemItemRefresh
+                           target:self
+                           action:@selector(handleRefresh:)]
+                          autorelease];
+    
     self.subscribeButton = [[[UIBarButtonItem alloc]
                              initWithTitle: NSLocalizedString(@"SUBSCRIBE_BUTTON_TEXT", nil)
                              style:UIBarButtonItemStylePlain
                              target:self
                              action:@selector(handleSubscribeButtonPressed:)]
                             autorelease];
-
+    
     self.blockingProgressView = [[UIAlertView alloc]
                                  initWithTitle:@"Processing..."
                                  message:@"\n"
@@ -189,32 +189,32 @@
     [self.blockingProgressView addSubview:spinner];
     [spinner startAnimating];
     [spinner release];
-
+    
     NSMutableSet *subscriptions = [NSMutableSet setWithArray:AUTO_RENEWABLE_SUBSCRIPTION_PRODUCT_IDS];
     if ([FREE_SUBSCRIPTION_PRODUCT_ID length] > 0 && ![purchasesManager isPurchased:FREE_SUBSCRIPTION_PRODUCT_ID]) {
         [subscriptions addObject:FREE_SUBSCRIPTION_PRODUCT_ID];
     }
     [purchasesManager retrievePricesFor:subscriptions andEnableFailureNotifications:NO];
-    #endif
+#endif
 }
 - (void)viewWillAppear:(BOOL)animated
 {
     [super viewWillAppear:animated];
     [self.navigationController.navigationBar setTranslucent:NO];
     [self willRotateToInterfaceOrientation:self.interfaceOrientation duration:0];
-
+    
     for (IssueViewController *controller in self.issueViewControllers) {
         controller.issue.transientStatus = BakerIssueTransientStatusNone;
         [controller refresh];
     }
-
-    #ifdef BAKER_NEWSSTAND
+    
+#ifdef BAKER_NEWSSTAND
     NSMutableArray *buttonItems = [NSMutableArray arrayWithObject:self.refreshButton];
     if ([purchasesManager hasSubscriptions] || [issuesManager hasProductIDs]) {
         [buttonItems addObject:self.subscribeButton];
     }
     self.navigationItem.leftBarButtonItems = buttonItems;
-    #endif
+#endif
     
     UIBarButtonItem *infoButton = [[[UIBarButtonItem alloc]
                                     initWithTitle: NSLocalizedString(@"INFO_BUTTON_TEXT", nil)
@@ -222,7 +222,7 @@
                                     target:self
                                     action:@selector(handleInfoButtonPressed:)]
                                    autorelease];
-
+    
     // Remove file info.html if you don't want the info button to be added to the shelf navigation bar
     NSString *infoPath = [[NSBundle mainBundle] pathForResource:@"info" ofType:@"html" inDirectory:@"info"];
     if ([[NSFileManager defaultManager] fileExistsAtPath:infoPath]) {
@@ -251,18 +251,20 @@
 {
     int width  = 0;
     int height = 0;
-
+    
     NSString *image = @"";
     CGSize size = [UIScreen mainScreen].bounds.size;
     int landscapePadding = 0;
-
+    
+    //iOS 8 update: the screenBounds width value is now always 'width', while it used to be 'height' in Landscape mode on iOS7. To keep the code working for both iOS8 and iOS7, use the higher/lower of width/height depending on orientation.
+    
     if (UIInterfaceOrientationIsPortrait(toInterfaceOrientation)) {
-        width  = size.width;
-        height = size.height - 64;
+        width  = MIN(size.width, size.height);
+        height = MAX(size.width, size.height) - 64;
         image  = @"shelf-bg-portrait";
     } else if (UIInterfaceOrientationIsLandscape(toInterfaceOrientation)) {
-        width  = size.height;
-        height = size.width - 64;
+        width  = MAX(size.width, size.height);
+        height = MIN(size.width, size.height) - 64;
         if (UI_USER_INTERFACE_IDIOM() == UIUserInterfaceIdiomPhone) {
             height = height + 12;
         }
@@ -270,18 +272,18 @@
         CGFloat cellWidth = [IssueViewController getIssueCellSize].width;
         landscapePadding = width / 4 - cellWidth / 2;
     }
-
+    
     if (size.height == 568) {
         image = [NSString stringWithFormat:@"%@-568h", image];
     } else {
         image = [NSString stringWithFormat:@"%@", image];
     }
-
+    
     int bannerHeight = [ShelfViewController getBannerHeight];
-
+    
     self.background.frame = CGRectMake(0, 0, width, height);
     self.background.image = [UIImage imageNamed:image];
-
+    
     self.gridView.frame = CGRectMake(landscapePadding, bannerHeight, width - 2 * landscapePadding, height - bannerHeight);
 }
 - (IssueViewController *)createIssueViewControllerWithIssue:(BakerIssue *)issue
@@ -304,24 +306,24 @@
 - (UICollectionViewCell *)collectionView:(UICollectionView *)collectionView cellForItemAtIndexPath:(NSIndexPath *)indexPath {
     CGSize cellSize = [IssueViewController getIssueCellSize];
     CGRect cellFrame = CGRectMake(0, 0, cellSize.width, cellSize.height);
-
+    
     static NSString *cellIdentifier = @"cellIdentifier";
     UICollectionViewCell* cell = [self.gridView dequeueReusableCellWithReuseIdentifier:cellIdentifier forIndexPath:indexPath];
-	if (cell == nil)
-	{
-		UICollectionViewCell* cell = [[[UICollectionViewCell alloc] initWithFrame:cellFrame] autorelease];
-
+    if (cell == nil)
+    {
+        UICollectionViewCell* cell = [[[UICollectionViewCell alloc] initWithFrame:cellFrame] autorelease];
+        
         cell.contentView.backgroundColor = [UIColor clearColor];
         cell.backgroundColor = [UIColor clearColor];
-	}
-
+    }
+    
     IssueViewController *controller = [self.issueViewControllers objectAtIndex:indexPath.row];
     UIView *removableIssueView = [cell.contentView viewWithTag:42];
     if (removableIssueView) {
         [removableIssueView removeFromSuperview];
     }
     [cell.contentView addSubview:controller.view];
-
+    
     return cell;
 }
 
@@ -332,36 +334,36 @@
 #ifdef BAKER_NEWSSTAND
 - (void)handleRefresh:(NSNotification *)notification {
     [self setrefreshButtonEnabled:NO];
-
+    
     [issuesManager refresh:^(BOOL status) {
         if(status) {
             self.issues = issuesManager.issues;
-
+            
             [shelfStatus load];
             for (BakerIssue *issue in self.issues) {
                 issue.price = [shelfStatus priceFor:issue.productID];
             }
-
+            
             void (^updateIssues)() = ^{
                 // Step 1: remove controllers for issues that no longer exist
                 __block NSMutableArray *discardedControllers = [NSMutableArray array];
                 [self.issueViewControllers enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
                     IssueViewController *ivc = (IssueViewController *)obj;
-
+                    
                     if (![self bakerIssueWithID:ivc.issue.ID]) {
                         [discardedControllers addObject:ivc];
                         [self.gridView deleteItemsAtIndexPaths:[NSArray arrayWithObject:[NSIndexPath indexPathForItem:idx inSection:0]]];
                     }
                 }];
                 [self.issueViewControllers removeObjectsInArray:discardedControllers];
-
+                
                 // Step 2: add controllers for issues that did not yet exist (and refresh the ones that do exist)
                 [self.issues enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
                     // NOTE: this block changes the issueViewController array while looping
                     BakerIssue *issue = (BakerIssue *)obj;
-
+                    
                     IssueViewController *existingIvc = [self issueViewControllerWithID:issue.ID];
-
+                    
                     if (existingIvc) {
                         existingIvc.issue = issue;
                     } else {
@@ -370,10 +372,10 @@
                         [self.gridView insertItemsAtIndexPaths:[NSArray arrayWithObject:[NSIndexPath indexPathForItem:idx inSection:0] ] ];
                     }
                 }];
-
+                
                 [self.gridView reloadData];
             };
-
+            
             // When first launched, the grid is not initialised, so we can't
             // call in the "batch update" method of the grid view
             if (self.gridView) {
@@ -382,7 +384,7 @@
             else {
                 updateIssues();
             }
-
+            
             [purchasesManager retrievePurchasesFor:[issuesManager productIDs] withCallback:^(NSDictionary *purchases) {
                 // List of purchases has been returned, so we can refresh all issues
                 [self.issueViewControllers enumerateObjectsUsingBlock:^(id obj, NSUInteger idx, BOOL *stop) {
@@ -390,7 +392,7 @@
                 }];
                 [self setrefreshButtonEnabled:YES];
             }];
-
+            
             [purchasesManager retrievePricesFor:issuesManager.productIDs andEnableFailureNotifications:NO];
         } else {
             [Utils showAlertWithTitle:NSLocalizedString(@"INTERNET_CONNECTION_UNAVAILABLE_TITLE", nil)
@@ -446,20 +448,20 @@
     } else {
         title = NSLocalizedString(@"SUBSCRIPTIONS_SHEET_GENERIC", nil);
     }
-
+    
     UIActionSheet *sheet = [[UIActionSheet alloc]initWithTitle:title
                                                       delegate:self
                                              cancelButtonTitle:nil
                                         destructiveButtonTitle:nil
                                              otherButtonTitles: nil];
     NSMutableArray *actions = [NSMutableArray array];
-
+    
     if (!purchasesManager.subscribed) {
         if ([FREE_SUBSCRIPTION_PRODUCT_ID length] > 0 && ![purchasesManager isPurchased:FREE_SUBSCRIPTION_PRODUCT_ID]) {
             [sheet addButtonWithTitle:NSLocalizedString(@"SUBSCRIPTIONS_SHEET_FREE", nil)];
             [actions addObject:FREE_SUBSCRIPTION_PRODUCT_ID];
         }
-
+        
         for (NSString *productId in AUTO_RENEWABLE_SUBSCRIPTION_PRODUCT_IDS) {
             NSString *title = [purchasesManager displayTitleFor:productId];
             NSString *price = [purchasesManager priceFor:productId];
@@ -469,17 +471,17 @@
             }
         }
     }
-
+    
     if ([issuesManager hasProductIDs]) {
         [sheet addButtonWithTitle:NSLocalizedString(@"SUBSCRIPTIONS_SHEET_RESTORE", nil)];
         [actions addObject:@"restore"];
     }
-
+    
     [sheet addButtonWithTitle:NSLocalizedString(@"SUBSCRIPTIONS_SHEET_CLOSE", nil)];
     [actions addObject:@"cancel"];
-
+    
     self.subscriptionsActionSheetActions = actions;
-
+    
     sheet.cancelButtonIndex = sheet.numberOfButtons - 1;
     return sheet;
 }
@@ -513,28 +515,28 @@
     [Utils showAlertWithTitle:NSLocalizedString(@"RESTORE_FAILED_TITLE", nil)
                       message:[error localizedDescription]
                   buttonTitle:NSLocalizedString(@"RESTORE_FAILED_CLOSE", nil)];
-
+    
     [self.blockingProgressView dismissWithClickedButtonIndex:0 animated:YES];
-
+    
 }
 
 - (void)handleMultipleRestores:(NSNotification *)notification {
-    #ifdef BAKER_NEWSSTAND
+#ifdef BAKER_NEWSSTAND
     if ([notRecognisedTransactions count] > 0) {
         NSSet *productIDs = [NSSet setWithArray:[[notRecognisedTransactions valueForKey:@"payment"] valueForKey:@"productIdentifier"]];
         NSString *productsList = [[productIDs allObjects] componentsJoinedByString:@", "];
-
+        
         [Utils showAlertWithTitle:NSLocalizedString(@"RESTORED_ISSUE_NOT_RECOGNISED_TITLE", nil)
                           message:[NSString stringWithFormat:NSLocalizedString(@"RESTORED_ISSUE_NOT_RECOGNISED_MESSAGE", nil), productsList]
                       buttonTitle:NSLocalizedString(@"RESTORED_ISSUE_NOT_RECOGNISED_CLOSE", nil)];
-
+        
         for (SKPaymentTransaction *transaction in notRecognisedTransactions) {
             [[SKPaymentQueue defaultQueue] finishTransaction:transaction];
         }
         [notRecognisedTransactions removeAllObjects];
     }
-    #endif
-
+#endif
+    
     [self handleRefresh:nil];
     [self.blockingProgressView dismissWithClickedButtonIndex:0 animated:YES];
 }
@@ -552,16 +554,16 @@
 
 - (void)handleSubscriptionPurchased:(NSNotification *)notification {
     SKPaymentTransaction *transaction = [notification.userInfo objectForKey:@"transaction"];
-
+    
     [purchasesManager markAsPurchased:transaction.payment.productIdentifier];
     [self setSubscribeButtonEnabled:YES];
-
+    
     if ([purchasesManager finishTransaction:transaction]) {
         if (!purchasesManager.subscribed) {
             [Utils showAlertWithTitle:NSLocalizedString(@"SUBSCRIPTION_SUCCESSFUL_TITLE", nil)
                               message:NSLocalizedString(@"SUBSCRIPTION_SUCCESSFUL_MESSAGE", nil)
                           buttonTitle:NSLocalizedString(@"SUBSCRIPTION_SUCCESSFUL_CLOSE", nil)];
-
+            
             [self handleRefresh:nil];
         }
     } else {
@@ -573,22 +575,22 @@
 
 - (void)handleSubscriptionFailed:(NSNotification *)notification {
     SKPaymentTransaction *transaction = [notification.userInfo objectForKey:@"transaction"];
-
+    
     // Show an error, unless it was the user who cancelled the transaction
     if (transaction.error.code != SKErrorPaymentCancelled) {
         [Utils showAlertWithTitle:NSLocalizedString(@"SUBSCRIPTION_FAILED_TITLE", nil)
                           message:[transaction.error localizedDescription]
                       buttonTitle:NSLocalizedString(@"SUBSCRIPTION_FAILED_CLOSE", nil)];
     }
-
+    
     [self setSubscribeButtonEnabled:YES];
 }
 
 - (void)handleSubscriptionRestored:(NSNotification *)notification {
     SKPaymentTransaction *transaction = [notification.userInfo objectForKey:@"transaction"];
-
+    
     [purchasesManager markAsPurchased:transaction.payment.productIdentifier];
-
+    
     if (![purchasesManager finishTransaction:transaction]) {
         NSLog(@"Could not confirm purchase restore with remote server for %@", transaction.payment.productIdentifier);
     }
@@ -597,7 +599,7 @@
 - (void)handleProductsRetrieved:(NSNotification *)notification {
     NSSet *ids = [notification.userInfo objectForKey:@"ids"];
     BOOL issuesRetrieved = NO;
-
+    
     for (NSString *productId in ids) {
         if ([productId isEqualToString:FREE_SUBSCRIPTION_PRODUCT_ID]) {
             // ID is for a free subscription
@@ -610,7 +612,7 @@
             issuesRetrieved = YES;
         }
     }
-
+    
     if (issuesRetrieved) {
         NSString *price;
         for (IssueViewController *controller in self.issueViewControllers) {
@@ -626,7 +628,7 @@
 
 - (void)handleProductsRequestFailed:(NSNotification *)notification {
     NSError *error = [notification.userInfo objectForKey:@"error"];
-
+    
     [Utils showAlertWithTitle:NSLocalizedString(@"PRODUCTS_REQUEST_FAILED_TITLE", nil)
                       message:[error localizedDescription]
                   buttonTitle:NSLocalizedString(@"PRODUCTS_REQUEST_FAILED_CLOSE", nil)];
@@ -644,8 +646,8 @@
 {
     BakerBook *book = nil;
     NSString *status = [issue getStatus];
-
-    #ifdef BAKER_NEWSSTAND
+    
+#ifdef BAKER_NEWSSTAND
     if ([status isEqual:@"opening"]) {
         book = [[[BakerBook alloc] initWithBookPath:issue.path bundled:NO] autorelease];
         if (book) {
@@ -662,12 +664,12 @@
                           buttonTitle:NSLocalizedString(@"ISSUE_OPENING_FAILED_CLOSE", nil)];
         }
     }
-    #else
+#else
     if ([status isEqual:@"bundled"]) {
         book = [issue bakerBook];
         [self pushViewControllerWithBook:book];
     }
-    #endif
+#endif
 }
 - (void)handleReadIssue:(NSNotification *)notification
 {
@@ -687,7 +689,7 @@
             break;
         }
     }
-
+    
     self.bookToBeProcessed = nil;
 }
 - (void)pushViewControllerWithBook:(BakerBook *)book
@@ -715,9 +717,9 @@
 - (void)webViewDidFinishLoad:(UIWebView *)webView {
     // Inject user_id
     [Utils webView:webView dispatchHTMLEvent:@"init" withParams:[NSDictionary dictionaryWithObjectsAndKeys:
-                                                                [BakerAPI UUID], @"user_id",
-                                                                [Utils appID], @"app_id",
-                                                                nil]];
+                                                                 [BakerAPI UUID], @"user_id",
+                                                                 [Utils appID], @"app_id",
+                                                                 nil]];
 }
 
 - (void)handleInfoButtonPressed:(id)sender {
@@ -764,12 +766,12 @@
 #pragma mark - Helper methods
 
 - (void)addPurchaseObserver:(SEL)notificationSelector name:(NSString *)notificationName {
-    #ifdef BAKER_NEWSSTAND
+#ifdef BAKER_NEWSSTAND
     [[NSNotificationCenter defaultCenter] addObserver:self
                                              selector:notificationSelector
                                                  name:notificationName
                                                object:purchasesManager];
-    #endif
+#endif
 }
 
 + (int)getBannerHeight

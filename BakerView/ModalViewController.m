@@ -305,13 +305,13 @@
 
     if (UIInterfaceOrientationIsPortrait(toInterfaceOrientation))
     {
-        screenWidth  = [[UIScreen mainScreen] bounds].size.width;
-        screenHeight = [[UIScreen mainScreen] bounds].size.height;
+        screenWidth  = MIN([[UIScreen mainScreen] bounds].size.height,[[UIScreen mainScreen] bounds].size.width);
+        screenHeight = MAX([[UIScreen mainScreen] bounds].size.height,[[UIScreen mainScreen] bounds].size.width);
     }
     else if (UIInterfaceOrientationIsLandscape(toInterfaceOrientation))
     {
-        screenWidth  = [[UIScreen mainScreen] bounds].size.height;
-        screenHeight = [[UIScreen mainScreen] bounds].size.width;
+       screenWidth  = MAX([[UIScreen mainScreen] bounds].size.height,[[UIScreen mainScreen] bounds].size.width);
+       screenHeight = MIN([[UIScreen mainScreen] bounds].size.height,[[UIScreen mainScreen] bounds].size.width);
     }
 
     self.view.frame = CGRectMake(0, 0, screenWidth, screenHeight);
