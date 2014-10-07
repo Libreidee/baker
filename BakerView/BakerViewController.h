@@ -84,6 +84,9 @@
     UIWebView *prevPage;
     UIWebView *currPage;
     UIWebView *nextPage;
+    
+    float startingDoubleDragPoint, distanceDoubleDrag;
+
 
     UIColor *webViewBackground;
 

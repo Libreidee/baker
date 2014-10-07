@@ -136,6 +136,9 @@
         pageNameFromURL = nil;
         anchorFromURL = nil;
         
+        startingDoubleDragPoint = 0.0;
+        distanceDoubleDrag = 0.0;
+        
         // TODO: LOAD BOOK METHOD IN VIEW DID LOAD
         [self loadBookWithBookPath:book.path];
     }
@@ -160,10 +163,17 @@
     scrollView.pagingEnabled = YES;
     scrollView.delegate = self;
     
+//    scrollView.scrollEnabled = [book.bakerPageTurnSwipe boolValue];
     scrollView.scrollEnabled = [book.bakerPageTurnSwipe boolValue];
     scrollView.backgroundColor = [Utils colorWithHexString:book.bakerBackground];
-    
-    scrollView.panGestureRecognizer.minimumNumberOfTouches = 2;
+
+    for (UIGestureRecognizer *gestureRecognizer in scrollView.gestureRecognizers) {
+        if ([gestureRecognizer  isKindOfClass:[UIPanGestureRecognizer class]]) {
+            UIPanGestureRecognizer *panGR = (UIPanGestureRecognizer *) gestureRecognizer;
+            panGR.minimumNumberOfTouches = 2;
+            panGR.maximumNumberOfTouches = 2;
+        }
+    }
     
     [self.view addSubview:scrollView];
     
@@ -193,9 +203,14 @@
         
         // Prevent duplicate observers
         [[NSNotificationCenter defaultCenter] removeObserver:self name:@"notification_touch_intercepted" object:nil];
+        [[NSNotificationCenter defaultCenter] removeObserver:self name:@"notification_doubletouch_intercepted" object:nil];
         
         // ****** LISTENER FOR INTERCEPTOR WINDOW NOTIFICATION
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleInterceptedTouch:) name:@"notification_touch_intercepted" object:nil];
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleInterceptedDoubleTouch:) name:@"notification_doubletouch_intercepted" object:nil];
+        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleInterceptedTouchEnd:) name:@"notification_touch_intercepted_end" object:nil];
+
+
         
         // ****** LISTENER FOR CLOSING APPLICATION
         [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(handleApplicationWillResignActive:) name:@"applicationWillResignActiveNotification" object:nil];
@@ -990,17 +1005,17 @@
     return CGRectMake(pageWidth * (page - 1), 0, pageWidth, pageHeight);
 }
 - (void)scrollViewWillBeginDragging:(UIScrollView *)scroll {
-    //NSLog(@"[BakerView] Scrollview will begin dragging");
+    NSLog(@"[BakerView] Scrollview will begin dragging");
     [self hideBars:[NSNumber numberWithBool:YES]];
 }
 - (void)scrollViewDidEndDragging:(UIScrollView *)scroll willDecelerate:(BOOL)decelerate {
-    //NSLog(@"[BakerView] Scrollview did end dragging");
+    NSLog(@"[BakerView] Scrollview did end dragging");
 }
 - (void)scrollViewWillBeginDecelerating:(UIScrollView *)scroll {
-    //NSLog(@"[BakerView] Scrollview will begin decelerating");
+    NSLog(@"[BakerView] Scrollview will begin decelerating");
 }
 - (void)scrollViewDidEndDecelerating:(UIScrollView *)scroll {
-    
+    NSLog(@"[BakerView] Scrollview did end decelerating");
     int page = (int)(scroll.contentOffset.x / pageWidth) + 1;
     NSLog(@"[BakerView] Swiping to page: %d", page);
     
@@ -1337,7 +1352,7 @@
 - (void)webView:(UIWebView *)webView setCorrectOrientation:(UIInterfaceOrientation)interfaceOrientation {
     
     // Since the UIWebView doesn't handle orientationchange events correctly we have to set the correct value for window.orientation property ourselves
-    NSString *jsOrientationGetter;
+    NSString *jsOrientationGetter = nil;
     switch (interfaceOrientation) {
         case UIInterfaceOrientationPortrait:
             jsOrientationGetter = @"window.__defineGetter__('orientation', function() { return 0; });";
@@ -1540,7 +1555,106 @@
 }
 
 #pragma mark - GESTURES
+- (void)handleInterceptedDoubleTouch:(NSNotification *)notification
+{
+    NSDictionary *userInfo = notification.userInfo;
+    UITouch *touch = [userInfo objectForKey:@"touch"];
+
+    
+    for (UIGestureRecognizer *gestureRecognizer in touch.gestureRecognizers) {
+        // gesture on webView
+        //if ([NSStringFromClass([gestureRecognizer.view class])  isEqualToString:@"UIWebBrowserView"]) {
+            if (touch.phase == UITouchPhaseBegan) {
+                NSLog(@"touch BEGAN in webView");
+                startingDoubleDragPoint = [touch locationInView:gestureRecognizer.view].x;
+            } else if (touch.phase == UITouchPhaseCancelled){
+                startingDoubleDragPoint = 0.0;
+                NSLog(@"touch CANCELLED");
+            } else if(touch.phase == UITouchPhaseStationary){
+                //NSLog(@"touch STATIONARY");
+            } else if (touch.phase == UITouchPhaseMoved){
+                // Scrolling Gesture
+                if(startingDoubleDragPoint > 0)
+                {
+                    
+                    // distanza globale di drag
+                    distanceDoubleDrag = startingDoubleDragPoint - [touch locationInView:self.view].x;
+                    
+                    // questo è calcolato sul receiver
+                    float momentDistance = startingDoubleDragPoint - [touch locationInView:gestureRecognizer.view].x;
+
+                    NSLog(@"startingPoint   : %f",startingDoubleDragPoint);
+                    NSLog(@"distance        : %f",distanceDoubleDrag);
+
+                    CGPoint newPosition = scrollView.contentOffset;
+                    newPosition.x += momentDistance;
+
+                    // we have to change current page
+                    [scrollView setContentOffset:newPosition];
+                    
+                }
+            } else {
+                NSLog(@"%d", touch.phase);
+            }
+        //}
+    }
+}
+- (void)handleInterceptedTouchEnd:(NSNotification *)notification {
+    //NSLog(@"single touch");
+    
+    //NSDictionary *userInfo = notification.userInfo;
+    //UITouch *touch = [userInfo objectForKey:@"touch"];
+    NSLog(@"touch COMPLETE");
+    // guardo se ho draggato
+    if(fabsf(distanceDoubleDrag) > 0)
+    {
+        NSLog(@">>> devo cambiare pagina <<<");
+        NSLog(@"pagina corrente    : %d",currentPageNumber);
+        
+        int currentPageOffset = (currentPageNumber -1) * pageWidth;
+        NSLog(@"currentPage offset : %d",currentPageOffset);
+        NSLog(@"content offset     : %f",scrollView.contentOffset.x);
+
+        int page = -1;
+        int deltaOffset = abs((int)(scrollView.contentOffset.x) - currentPageOffset);
+        
+        BOOL shouldChangePage =  deltaOffset > pageWidth/2;
+        NSLog(@"delta offset       : %d",deltaOffset);
+        NSLog(@"Should I change page: %hhd",shouldChangePage);
+        
+        if(shouldChangePage)
+        {
+            if((int)(scrollView.contentOffset.x) > currentPageOffset)
+            {
+                page = currentPageNumber +1;
+            } else {
+                page = currentPageNumber - 1;
+            }
+            
+            if(page <= totalPages && page > 0)
+                [self changePage:page];
+            else {
+                [self hideBars:[NSNumber numberWithBool:YES]];
+                [scrollView scrollRectToVisible:[self frameForPage:currentPageNumber] animated:YES];
+            }
+        } else {
+            //page = currentPageNumber;
+            [self hideBars:[NSNumber numberWithBool:YES]];
+            [scrollView scrollRectToVisible:[self frameForPage:currentPageNumber] animated:YES];
+        }
+        
+        NSLog(@"pagina da andare   : %d",page);
+
+        
+        distanceDoubleDrag = 0.0;
+    }
+    
+    startingDoubleDragPoint = 0.0;
+
+}
+
 - (void)handleInterceptedTouch:(NSNotification *)notification {
+    NSLog(@"single touch");
     
     NSDictionary *userInfo = notification.userInfo;
     UITouch *touch = [userInfo objectForKey:@"touch"];
@@ -1605,6 +1719,7 @@
 }
 - (void)userDidScroll:(UITouch *)touch {
     //NSLog(@"[BakerView] User scroll");
+    
     [self hideBars:[NSNumber numberWithBool:YES]];
     
     currPage.backgroundColor = webViewBackground;

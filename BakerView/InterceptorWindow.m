@@ -37,22 +37,31 @@
 #pragma mark - Events management
 
 - (void)sendEvent:(UIEvent *)event {
-
+    
     [super sendEvent:event];
     [self interceptEvent:event];
 }
 - (void)interceptEvent:(UIEvent *)event {
-
+    
+    //NSLog(@"%@",event);
+    
     if (event.type == UIEventTypeTouches)
     {
         NSSet *touches = [event allTouches];
+        UITouch *touch = touches.anyObject;
+        NSDictionary *userInfo = [NSDictionary dictionaryWithObjectsAndKeys:touch, @"touch", event, @"event",nil];
+        
+        if(touch.phase == UITouchPhaseEnded)
+            [[NSNotificationCenter defaultCenter] postNotificationName:@"notification_touch_intercepted_end" object:nil userInfo:userInfo];
+        
         if (touches.count == 1)
         {
-            UITouch *touch = touches.anyObject;
-
-            NSDictionary *userInfo = [NSDictionary dictionaryWithObjectsAndKeys:touch, @"touch", nil];
             [[NSNotificationCenter defaultCenter] postNotificationName:@"notification_touch_intercepted" object:nil userInfo:userInfo];
+        } else if (touches.count == 2)
+        {
+            [[NSNotificationCenter defaultCenter] postNotificationName:@"notification_doubletouch_intercepted" object:nil userInfo:userInfo];
         }
+        
     }
 }
 
