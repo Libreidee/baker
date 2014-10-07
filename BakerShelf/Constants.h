@@ -47,7 +47,7 @@
         // Mandatory - This constant defines where the JSON file containing all the publications is located.
         // For more information on this file, see: https://github.com/Simbul/baker/wiki/Newsstand-shelf-JSON
         // E.g. @"http://example.com/shelf.json"
-        #define NEWSSTAND_MANIFEST_URL @"http://www.memo-mag.com/test-issues/shelf.json"
+        #define NEWSSTAND_MANIFEST_URL @"http://10.123.123.108/memo/shelf.json"
 
         // ----------------------------------------------------------------------------------------------------
         // Optional - This constant specifies the URL to ping back when a user purchases an issue or a subscription.
