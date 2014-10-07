@@ -59,6 +59,7 @@
 @synthesize infoLabel;
 
 @synthesize currentStatus;
+@synthesize downloadStart;
 
 #pragma mark - Init
 
@@ -68,6 +69,8 @@
     if (self) {
         self.issue = bakerIssue;
         self.currentStatus = nil;
+        
+
 
         purchaseDelayed = NO;
 
@@ -604,12 +607,25 @@
 
 #pragma mark - Newsstand download management
 
+
 - (void)handleDownloadStarted:(NSNotification *)notification {
+    NSDate *now = [NSDate date];
+    [self setDownloadStart:now];
     [self refresh];
 }
 - (void)handleDownloadProgressing:(NSNotification *)notification {
     float bytesWritten = [[notification.userInfo objectForKey:@"totalBytesWritten"] floatValue];
     float bytesExpected = [[notification.userInfo objectForKey:@"expectedTotalBytes"] floatValue];
+    
+    // tempo trascorso diviso bytes scaricati
+    NSDate *now = [NSDate date];
+    NSTimeInterval ellapsed = [now timeIntervalSinceDate:self.downloadStart];
+    
+    double downloadSpeed = (bytesWritten / 1024.00 / 1024.00) / (double)ellapsed ;
+    
+    //NSLog(@"ellapsed time: %f, downloaded : %f , download speed : %f",ellapsed, bytesWritten, downloadSpeed);
+    
+    loadingLabel.text = [NSString stringWithFormat:@"speed: %.2f MB/s", downloadSpeed];
 
     if ([self.currentStatus isEqualToString:@"connecting"]) {
         self.issue.transientStatus = BakerIssueTransientStatusDownloading;

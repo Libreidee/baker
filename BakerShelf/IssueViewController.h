@@ -57,6 +57,7 @@
 @property (strong, nonatomic) UILabel *infoLabel;
 
 @property (copy, nonatomic) NSString *currentStatus;
+@property (copy, nonatomic) NSDate *downloadStart;
 
 #pragma mark - Structs
 typedef struct {
